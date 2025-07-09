@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NFA to DFA Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    header h1 {
+      text-shadow: 1px 1px 2px #cbd5e1;
+    }
+    section {
+      transition: all 0.3s ease-in-out;
+    }
+    section:hover {
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    .graph-box {
+      background: linear-gradient(to bottom right, #f9fafb, #e0f2fe);
+      height: 500px;
+    }
+    .floating {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #1e40af;
+      color: white;
+      text-align: center;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.1);
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-white to-blue-50 min-h-screen p-6 text-gray-800">
+
+<!-- Navigation Bar -->
+<nav class="fixed top-0 left-0 w-full bg-blue-900 text-white py-3 z-50 shadow-md">
+  <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
+    <div class="text-lg font-semibold">NFA → DFA Simulator</div>
+    <div class="space-x-6 text-sm">
+      <a href="#" class="hover:underline text-blue-100">Home</a>
+      <a href="#" onclick="document.getElementById('predefined-section').scrollIntoView({ behavior: 'smooth' })" class="hover:underline text-blue-100">Predefined</a>
+      <a href="#" onclick="document.getElementById('custom-section').scrollIntoView({ behavior: 'smooth' })" class="hover:underline text-blue-100">Custom Input</a>
+      <a href="#" onclick="document.getElementById('regex-section').scrollIntoView({ behavior: 'smooth' })" class="hover:underline text-blue-100">Regular-Expression</a>
+    </div>
+  </div>
+</nav>
+
+<header class="text-center mb-10 mt-20">
+  <h1 class="text-5xl font-extrabold text-blue-700 drop-shadow floating">NFA → DFA Simulator</h1>
+  <p class="text-gray-600 mt-3 text-lg">Visualize Predefined, Custom, and Regex-based Automata</p>
+</header>
+
+<!-- Section Navigation Tabs -->
+<div class="flex justify-center gap-6 my-6">
+  <button onclick="document.getElementById('predefined-section').scrollIntoView({ behavior: 'smooth' })" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow">Predefined</button>
+  <button onclick="document.getElementById('custom-section').scrollIntoView({ behavior: 'smooth' })" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 shadow">Custom Input</button>
+  <button onclick="document.getElementById('regex-section').scrollIntoView({ behavior: 'smooth' })" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 shadow">Regular-Expression</button>
+</div>
+
+<!-- Predefined Section -->
+<section id="predefined-section" class="bg-white p-6 rounded shadow-md mb-10">
+  <h2 class="text-xl font-bold text-blue-700 mb-4">Predefined NFA Examples</h2>
+  <select id="nfa-select" class="w-full p-2 border rounded mb-4">
+    <option value="ends-in-01">Ends in 01</option>
+    <option value="epsilon-nfa">Uses ε-transition</option>
+    <option value="contains-101">Contains 101</option>
+    <option value="even-zeros">Even number of 0s</option>
+  </select>
+  <div class="flex gap-4">
+    <button id="start-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Convert</button>
+    <button id="fit-btn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Fit View</button>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <div>
+      <h3 class="text-lg font-semibold text-blue-600 mb-2">Predefined NFA</h3>
+      <div id="nfaGraph" class="graph-box border rounded"></div>
+    </div>
+    <div>
+      <h3 class="text-lg font-semibold text-pink-600 mb-2">Predefined DFA</h3>
+      <div id="dfaGraph" class="graph-box border rounded"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Custom Input Section -->
+<section id="custom-section" class="bg-white p-6 rounded shadow-md mb-10">
+  <h2 class="text-xl font-bold text-purple-700 mb-4">Custom Input </h2>
+  <input type="text" id="customInput" placeholder="e.g. 101ε" class="w-full p-2 border rounded mb-4" />
+  <div class="flex gap-4">
+    <button onclick="handleCustomInput()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Generate</button>
+    <button onclick="fitCustomGraphs()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Fit View</button>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <div>
+      <h3 class="text-lg font-semibold text-purple-600 mb-2">Custom NFA</h3>
+      <div id="customNfaGraph" class="graph-box border rounded"></div>
+    </div>
+    <div>
+      <h3 class="text-lg font-semibold text-yellow-600 mb-2">Custom DFA</h3>
+      <div id="customDfaGraph" class="graph-box border rounded"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Regex Section -->
+<section id="regex-section" class="bg-white p-6 rounded shadow-md mb-10">
+  <h2 class="text-xl font-bold text-indigo-700 mb-4">Regular-Expression Examples</h2>
+  <select id="regex-select" class="w-full p-2 border rounded mb-4">
+    <option value="a*b">a*b</option>
+    <option value="a|b">a|b</option>
+    <option value="(a|b)*abb">(a|b)*abb</option>
+  </select>
+  <div class="flex gap-4">
+    <button id="regex-btn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Generate</button>
+    <button id="fit-regex-btn" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">Fit View</button>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <div>
+      <h3 class="text-lg font-semibold text-indigo-600 mb-2">Regular-Expression NFA</h3>
+      <div id="regexNfaGraph" class="graph-box border rounded"></div>
+    </div>
+    <div>
+      <h3 class="text-lg font-semibold text-teal-600 mb-2">Regular-Expression DFA</h3>
+      <div id="regexDfaGraph" class="graph-box border rounded"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="text-center text-sm text-gray-500 mt-12">Developed by Iman • © 2025</footer>
+<div class="status-bar">Ready to visualize automata – select an example to begin.</div>
+<script src="script.js"></script>
+<script>
+  document.getElementById("start-btn").addEventListener("click", () => {
+    const selectedKey = document.getElementById("nfa-select").value;
+    const nfa = getPredefinedNFA(selectedKey);
+    const dfa = convertNFAToDFA(nfa);
+    showGraphs(nfa, dfa, document.getElementById("nfaGraph"), document.getElementById("dfaGraph"));
+  });
+
+  // ==============================
+// Handle Custom Input Conversion
+// ==============================
+function handleCustomInput() {
+  <button onclick="handleCustomInput()">Convert</button>
+
+  const input = document.getElementById("customInput").value.trim();
+  if (!input) return alert("Please enter a valid input string (e.g., 01ε1).");
+
+  const nfa = buildNFAFromString(input);
+  const dfa = convertNFAToDFA(nfa);
+
+
+  showGraphs(
+    nfa,
+    dfa,
+    document.getElementById("customNfaGraph"),
+    document.getElementById("customDfaGraph")
+  );
+}
+
+// ==============================
+// Build NFA from Input String
+// ==============================
+function buildNFAFromString(str) {
+  const states = [];
+  const transitions = {};
+  const alphabet = new Set();
+
+  // Create states and initialize transition objects
+  for (let i = 0; i <= str.length; i++) {
+    const state = `q${i}`;
+    states.push(state);
+    transitions[state] = {};
+  }
+
+  // Define transitions based on input characters
+  for (let i = 0; i < str.length; i++) {
+    const from = `q${i}`;
+    const to = `q${i + 1}`;
+    const symbol = str[i];
+
+    if (symbol !== 'ε') alphabet.add(symbol);
+
+    // Ensure multiple transitions are supported
+    if (!transitions[from][symbol]) {
+      transitions[from][symbol] = [];
+    }
+    transitions[from][symbol].push(to);
+  }
+
+  return {
+    states,
+    alphabet: Array.from(alphabet),
+    transitions,
+    startState: 'q0',
+    finalStates: [`q${str.length}`]
+  };
+}
+
+// ==============================
+// Optional Graph Fit Alert
+// ==============================
+function fitCustomGraphs() {
+  alert("Click 'Generate' to visualize graphs. Vis.js auto-fits them.");
+}
+
+</script>
+</body>
+</html>
